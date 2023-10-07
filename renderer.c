@@ -70,7 +70,7 @@ void qr_matrix_dump(struct qr_matrix *mat) {
     for (int c = 0; c < mat_size; c++) {
       int cell = mat->data[r * mat_size + c];
       switch (cell) {
-        case QRMV_RESERVED:
+        case QRMV_UNINIT:
           putchar('_');
           break;
         case QRMV_W:
@@ -120,6 +120,9 @@ static void render_single_pospats(struct qr_matrix *mat, struct coord crd,
   }
 }
 
+/**
+ * 位置パターンをレンダリングする。
+ */
 static void render_pospats(struct qr_matrix *mat) {
   // 左上、右上、左下の位置パターン
   int mat_size = matrix_size(mat->version);
@@ -135,10 +138,34 @@ static void render_pospats(struct qr_matrix *mat) {
   }
 }
 
+/**
+ * タイミングパターンをレンダリングする。
+ */
+static void render_timpats(struct qr_matrix *mat) {
+  int mat_size = matrix_size(mat->version);
+
+  // 縦のタイミングパターン
+  for (int r = 0; r < mat_size; r++) {
+    uint8_t *cell = &mat->data[r * mat_size + 6];
+    if (*cell == QRMV_UNINIT) {
+      *cell = (r % 2 == 0) ? QRMV_PRE_B : QRMV_PRE_W;
+    }
+  }
+
+  // 横のタイミングパターン
+  for (int c = 0; c < mat_size; c++) {
+    uint8_t *cell = &mat->data[6 * mat_size + c];
+    if (*cell == QRMV_UNINIT) {
+      *cell = (c % 2 == 0) ? QRMV_PRE_B : QRMV_PRE_W;
+    }
+  }
+}
+
 void render(struct qr_matrix *mat, const uint8_t *data,
             const uint8_t *error_codes) {
   assert(data);
   assert(error_codes);
   render_pospats(mat);
+  render_timpats(mat);
   return;
 }

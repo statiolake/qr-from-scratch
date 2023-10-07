@@ -7,7 +7,7 @@
 #include "qrcode.h"
 
 // qr_matrixのdata
-#define QRMV_RESERVED 0
+#define QRMV_UNINIT 0
 #define QRMV_W 1
 #define QRMV_B 2
 #define QRMV_PRE_W 3

@@ -12,18 +12,18 @@ enum qr_version {
 
 // Hのみサポート
 enum qr_errmode {
-  // qrerr_L,
-  qrerr_M,
-  // qrerr_Q,
-  // qrerr_H,
+  // qrerr_L = 1,
+  qrerr_M = 0,
+  // qrerr_Q = 3,
+  qrerr_H = 2,
 };
 
 // 8ビットのみをサポート
 enum qr_encmode {
-  // qrenc_num,
-  // qrenc_alnum,
-  qrenc_8bit,
-  // qrenc_kanji,
+  // qrenc_num = 1,
+  // qrenc_alnum = 2,
+  qrenc_8bit = 4,
+  // qrenc_kanji = 8,
 };
 
 #endif

@@ -126,6 +126,13 @@ static void render_pospats(struct qr_matrix *mat) {
   render_single_pospats(mat, (struct coord){3, 3}, true);
   render_single_pospats(mat, (struct coord){mat_size - 4, 3}, true);
   render_single_pospats(mat, (struct coord){3, mat_size - 4}, true);
+
+  // それ以外の位置パターン
+  struct coord *crds;
+  int num_crds = pospat_coords(mat->version, mat->mode, &crds);
+  for (int i = 0; i < num_crds; i++) {
+    render_single_pospats(mat, crds[i], false);
+  }
 }
 
 void render(struct qr_matrix *mat, const uint8_t *data,

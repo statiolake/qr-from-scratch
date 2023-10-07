@@ -77,7 +77,7 @@ int num_blocks_rs(enum qr_version version, enum qr_errmode mode) {
 }
 
 static int alignment_coords(enum qr_version version, enum qr_errmode mode,
-                            struct coord **crds) {
+                            struct coord const **crds) {
   assert(version == qrver_3);
   assert(mode == qrerr_M);
 
@@ -134,7 +134,7 @@ static void render_finders(struct qr_matrix *mat) {
  * Alignment パターンをレンダリングする。
  */
 static void render_alignments(struct qr_matrix *mat) {
-  struct coord *crds;
+  struct coord const *crds;
   int num_crds = alignment_coords(mat->version, mat->mode, &crds);
   for (int i = 0; i < num_crds; i++) {
     render_square_pattern(mat, crds[i], false);

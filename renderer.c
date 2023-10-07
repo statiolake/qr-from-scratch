@@ -201,10 +201,6 @@ static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
 
   struct f2x q, r;
   assert(f2x_alloc_div(&q, &r, &f, &g));
-  f2x_dump(&f);
-  f2x_dump(&g);
-  f2x_dump(&q);
-  f2x_dump(&r);
 
   bits[5] = f2x_get_coeffs(&r, 9);
   bits[6] = f2x_get_coeffs(&r, 8);

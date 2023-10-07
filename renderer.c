@@ -15,7 +15,7 @@ int matrix_size(enum qr_version version) {
 }
 
 bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
-                     enum qr_errmode mode, enum qr_mask_pattern mask) {
+                     enum qr_errmode mode, enum qr_maskpat mask) {
   int size = matrix_size(version);
   uint8_t *data = (uint8_t *)malloc(size * size);
   if (!data) return false;
@@ -166,22 +166,19 @@ static void render_timings(struct qr_matrix *mat) {
   }
 }
 
-static void render_format_info(struct qr_matrix *mat) {
-  int bits[15] = {0};
-
+static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
+                                int *bits) {
 #define BITS_OF(num, nth) ((num & (1 << (nth))) >> (nth))
 
   // 誤り訂正レベルを入れる
-  bits[0] = BITS_OF(mat->mode, 1);
-  bits[1] = BITS_OF(mat->mode, 0);
+  bits[0] = BITS_OF(mode, 1);
+  bits[1] = BITS_OF(mode, 0);
 
   // マスク指示子を入れる
-  bits[2] = BITS_OF(mat->mask, 2);
-  bits[3] = BITS_OF(mat->mask, 1);
-  bits[4] = BITS_OF(mat->mask, 0);
+  bits[2] = BITS_OF(mask, 2);
+  bits[3] = BITS_OF(mask, 1);
+  bits[4] = BITS_OF(mask, 0);
 #undef BITS_OF
-
-  assert(bits[0] == 1);
 
   // 誤り訂正符号を計算する
   struct f2x f;
@@ -231,6 +228,49 @@ static void render_format_info(struct qr_matrix *mat) {
   for (int i = 0; i < 15; i++) {
     bits[i] ^= pattern[i];
   }
+}
+
+static void render_format_info(struct qr_matrix *mat) {
+  int bits[15] = {0};
+  compute_format_info(mat->mode, mat->mask, bits);
+
+  int size = matrix_size(mat->version);
+#define SET(r, c, v) mat->data[(r)*size + (c)] = (v ? QRMV_PRE_B : QRMV_PRE_W)
+  // 左上に埋めるパターン
+  SET(0, 8, bits[0]);
+  SET(1, 8, bits[1]);
+  SET(2, 8, bits[2]);
+  SET(3, 8, bits[3]);
+  SET(4, 8, bits[4]);
+  SET(5, 8, bits[5]);
+  SET(7, 8, bits[6]);
+  SET(8, 8, bits[7]);
+  SET(8, 7, bits[8]);
+  SET(8, 5, bits[9]);
+  SET(8, 4, bits[10]);
+  SET(8, 3, bits[11]);
+  SET(8, 2, bits[12]);
+  SET(8, 1, bits[13]);
+  SET(8, 0, bits[14]);
+
+  // 右上と左下に埋めるパターン
+  SET(8, size - 1, bits[0]);
+  SET(8, size - 2, bits[1]);
+  SET(8, size - 3, bits[2]);
+  SET(8, size - 4, bits[3]);
+  SET(8, size - 5, bits[4]);
+  SET(8, size - 6, bits[5]);
+  SET(8, size - 7, bits[6]);
+  SET(8, size - 8, bits[7]);
+  SET(size - 8, 8, 1);
+  SET(size - 7, 8, bits[8]);
+  SET(size - 6, 8, bits[9]);
+  SET(size - 5, 8, bits[10]);
+  SET(size - 4, 8, bits[11]);
+  SET(size - 3, 8, bits[12]);
+  SET(size - 2, 8, bits[13]);
+  SET(size - 1, 8, bits[14]);
+#undef SET
 }
 
 void render(struct qr_matrix *mat, const uint8_t *data,

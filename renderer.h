@@ -15,7 +15,7 @@
 
 #define QR_FORMAT_INFO_MASK 21522;  // 101010000010010
 
-enum qr_mask_pattern {
+enum qr_maskpat {
   qrmsk_000 = 0,  // (i+j) mod 2 = 0
   // qrmsk_001 = 1,  // i mod 2 = 0
   // qrmsk_010 = 2,  // j mod 3 = 0
@@ -30,7 +30,7 @@ struct qr_matrix {
   uint8_t *data;
   enum qr_version version;
   enum qr_errmode mode;
-  enum qr_mask_pattern mask;
+  enum qr_maskpat mask;
 };
 
 struct coord {
@@ -40,7 +40,7 @@ struct coord {
 int matrix_size(enum qr_version version);
 
 bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
-                     enum qr_errmode mode, enum qr_mask_pattern mask);
+                     enum qr_errmode mode, enum qr_maskpat mask);
 
 void qr_matrix_free(struct qr_matrix *mat);
 

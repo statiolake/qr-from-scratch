@@ -3,6 +3,7 @@
   "C_Cpp.clang_format_fallbackStyle": "Google",
   "files.associations": {
     "*.wicurio": "wicurio",
-    "stdint.h": "c"
+    "stdint.h": "c",
+    "stdlib.h": "c"
   }
 }

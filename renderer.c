@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "qrcode.h"
@@ -63,5 +64,74 @@ void qr_matrix_free(struct qr_matrix *mat) {
   mat->data = NULL;
 }
 
+void qr_matrix_dump(struct qr_matrix *mat) {
+  int mat_size = matrix_size(mat->version);
+  for (int r = 0; r < mat_size; r++) {
+    for (int c = 0; c < mat_size; c++) {
+      int cell = mat->data[r * mat_size + c];
+      switch (cell) {
+        case QRMV_RESERVED:
+          putchar('_');
+          break;
+        case QRMV_W:
+        case QRMV_PRE_W:
+          putchar('.');
+          break;
+        case QRMV_B:
+        case QRMV_PRE_B:
+          putchar('*');
+          break;
+      }
+    }
+    putchar('\n');
+  }
+}
+
+/**
+ * `c` を中心として位置パターンをレンダリングする。
+ * @param mat レンダリング先
+ * @param c 中心座標
+ * @param is_large 大きいかどうか (左上、右上、左下の大きめのパターンかどうか)
+ */
+static void render_single_pospats(struct qr_matrix *mat, struct coord crd,
+                                  bool is_large) {
+  // is_large な位置パターンは、中央の塗りつぶしがちょっと広い。どれだけ余分に
+  // 塗るか
+  int center_extra = is_large ? 1 : 0;
+
+  // c がはみ出していないことを確認する
+  int pat_size = 2 + center_extra;
+  int mat_size = matrix_size(mat->version);
+  assert(0 <= crd.c - pat_size && crd.c + pat_size < mat_size);
+  assert(0 <= crd.r - pat_size && crd.r + pat_size < mat_size);
+
+  // 塗る
+  for (int dr = -pat_size; dr <= pat_size; dr++) {
+    for (int dc = -pat_size; dc <= pat_size; dc++) {
+      int r = crd.r + dr;
+      int c = crd.c + dc;
+
+      bool on_border = dr == -pat_size || dr == pat_size || dc == -pat_size ||
+                       dc == pat_size;
+      bool on_center = abs(dr) <= center_extra && abs(dc) <= center_extra;
+      mat->data[r * mat_size + c] =
+          on_border || on_center ? QRMV_PRE_B : QRMV_PRE_W;
+    }
+  }
+}
+
+static void render_pospats(struct qr_matrix *mat) {
+  // 左上、右上、左下の位置パターン
+  int mat_size = matrix_size(mat->version);
+  render_single_pospats(mat, (struct coord){3, 3}, true);
+  render_single_pospats(mat, (struct coord){mat_size - 4, 3}, true);
+  render_single_pospats(mat, (struct coord){3, mat_size - 4}, true);
+}
+
 void render(struct qr_matrix *mat, const uint8_t *data,
-            const uint8_t *error_codes) {}
+            const uint8_t *error_codes) {
+  assert(data);
+  assert(error_codes);
+  render_pospats(mat);
+  return;
+}

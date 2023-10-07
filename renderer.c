@@ -13,38 +13,6 @@ int matrix_size(enum qr_version version) {
   return 29;
 }
 
-int num_blocks_data(enum qr_version version, enum qr_errmode mode) {
-  // qrver_3, qrerr_M しか対応しない
-  assert(version == qrver_3);
-  assert(mode == qrerr_M);
-  return 44;
-}
-
-int num_blocks_err(enum qr_version version, enum qr_errmode mode) {
-  // qrver_3, qrerr_M しか対応しない
-  assert(version == qrver_3);
-  assert(mode == qrerr_M);
-  return 26;
-}
-
-int num_blocks_rs(enum qr_version version, enum qr_errmode mode) {
-  // qrver_3, qrerr_M しか対応しない
-  assert(version == qrver_3);
-  assert(mode == qrerr_M);
-  return 1;
-}
-
-int pospat_coords(enum qr_version version, enum qr_errmode mode,
-                  struct coord **crds) {
-  assert(version == qrver_3);
-  assert(mode == qrerr_M);
-
-  // QRコード3Mの位置は0-indexedで(22, 22)の1つ
-  static struct coord COORDS_3M[] = {{.r = 22, .c = 22}};
-  *crds = COORDS_3M;
-  return 1;
-}
-
 bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
                      enum qr_errmode mode) {
   int size = matrix_size(version);
@@ -87,17 +55,48 @@ void qr_matrix_dump(struct qr_matrix *mat) {
   }
 }
 
+int num_blocks_data(enum qr_version version, enum qr_errmode mode) {
+  // qrver_3, qrerr_M しか対応しない
+  assert(version == qrver_3);
+  assert(mode == qrerr_M);
+  return 44;
+}
+
+int num_blocks_err(enum qr_version version, enum qr_errmode mode) {
+  // qrver_3, qrerr_M しか対応しない
+  assert(version == qrver_3);
+  assert(mode == qrerr_M);
+  return 26;
+}
+
+int num_blocks_rs(enum qr_version version, enum qr_errmode mode) {
+  // qrver_3, qrerr_M しか対応しない
+  assert(version == qrver_3);
+  assert(mode == qrerr_M);
+  return 1;
+}
+
+static int alignment_coords(enum qr_version version, enum qr_errmode mode,
+                            struct coord **crds) {
+  assert(version == qrver_3);
+  assert(mode == qrerr_M);
+
+  // QRコード3Mの位置は0-indexedで(22, 22)の1つ
+  static struct coord COORDS_3M[] = {{.r = 22, .c = 22}};
+  *crds = COORDS_3M;
+  return 1;
+}
+
 /**
- * `c` を中心として位置パターンをレンダリングする。
+ * `c` を中心として四角いパターン (Finder, Alignment) をレンダリングする。
  * @param mat レンダリング先
  * @param c 中心座標
- * @param is_large 大きいかどうか (左上、右上、左下の大きめのパターンかどうか)
+ * @param is_finder Finder かどうか (左上、右上、左下の大きいやつかどうか)
  */
-static void render_single_pospats(struct qr_matrix *mat, struct coord crd,
-                                  bool is_large) {
-  // is_large な位置パターンは、中央の塗りつぶしがちょっと広い。どれだけ余分に
-  // 塗るか
-  int center_extra = is_large ? 1 : 0;
+static void render_square_pattern(struct qr_matrix *mat, struct coord crd,
+                                  bool is_finder) {
+  // Finder パターンは中央の塗りつぶしがちょっと広い。どれだけ余分に塗るか
+  int center_extra = is_finder ? 1 : 0;
 
   // c がはみ出していないことを確認する
   int pat_size = 2 + center_extra;
@@ -121,30 +120,34 @@ static void render_single_pospats(struct qr_matrix *mat, struct coord crd,
 }
 
 /**
- * 位置パターンをレンダリングする。
+ * Finder パターンをレンダリングする。
  */
-static void render_pospats(struct qr_matrix *mat) {
-  // 左上、右上、左下の位置パターン
+static void render_finders(struct qr_matrix *mat) {
+  // 左上、右上、左下
   int mat_size = matrix_size(mat->version);
-  render_single_pospats(mat, (struct coord){3, 3}, true);
-  render_single_pospats(mat, (struct coord){mat_size - 4, 3}, true);
-  render_single_pospats(mat, (struct coord){3, mat_size - 4}, true);
+  render_square_pattern(mat, (struct coord){3, 3}, true);
+  render_square_pattern(mat, (struct coord){mat_size - 4, 3}, true);
+  render_square_pattern(mat, (struct coord){3, mat_size - 4}, true);
+}
 
-  // それ以外の位置パターン
+/**
+ * Alignment パターンをレンダリングする。
+ */
+static void render_alignments(struct qr_matrix *mat) {
   struct coord *crds;
-  int num_crds = pospat_coords(mat->version, mat->mode, &crds);
+  int num_crds = alignment_coords(mat->version, mat->mode, &crds);
   for (int i = 0; i < num_crds; i++) {
-    render_single_pospats(mat, crds[i], false);
+    render_square_pattern(mat, crds[i], false);
   }
 }
 
 /**
- * タイミングパターンをレンダリングする。
+ * Timing パターンをレンダリングする。
  */
-static void render_timpats(struct qr_matrix *mat) {
+static void render_timings(struct qr_matrix *mat) {
   int mat_size = matrix_size(mat->version);
 
-  // 縦のタイミングパターン
+  // 縦の Timing パターン
   for (int r = 0; r < mat_size; r++) {
     uint8_t *cell = &mat->data[r * mat_size + 6];
     if (*cell == QRMV_UNINIT) {
@@ -152,7 +155,7 @@ static void render_timpats(struct qr_matrix *mat) {
     }
   }
 
-  // 横のタイミングパターン
+  // 横の Timing パターン
   for (int c = 0; c < mat_size; c++) {
     uint8_t *cell = &mat->data[6 * mat_size + c];
     if (*cell == QRMV_UNINIT) {
@@ -165,7 +168,10 @@ void render(struct qr_matrix *mat, const uint8_t *data,
             const uint8_t *error_codes) {
   assert(data);
   assert(error_codes);
-  render_pospats(mat);
-  render_timpats(mat);
+
+  render_finders(mat);
+  render_alignments(mat);
+  render_timings(mat);
+
   return;
 }

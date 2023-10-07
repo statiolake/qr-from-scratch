@@ -25,26 +25,18 @@ struct coord {
 
 int matrix_size(enum qr_version version);
 
-int num_blocks_data(enum qr_version version, enum qr_errmode mode);
-
-int num_blocks_err(enum qr_version version, enum qr_errmode mode);
-
-int num_blocks_rs(enum qr_version version, enum qr_errmode mode);
-
-/**
- * 位置合わせパターンの個数と中央位置
- * @param coords 結果を格納する配列へのポインタ
- * @return 個数
- */
-int pospat_coords(enum qr_version version, enum qr_errmode mode,
-                  struct coord **crds);
-
 bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
                      enum qr_errmode mode);
 
 void qr_matrix_free(struct qr_matrix *mat);
 
 void qr_matrix_dump(struct qr_matrix *mat);
+
+int num_blocks_data(enum qr_version version, enum qr_errmode mode);
+
+int num_blocks_err(enum qr_version version, enum qr_errmode mode);
+
+int num_blocks_rs(enum qr_version version, enum qr_errmode mode);
 
 void render(struct qr_matrix *mat, uint8_t const *data, uint8_t const *err);
 

@@ -9,8 +9,8 @@ int main(void) {
   if (!qr_matrix_alloc(&mat, qrver_3, qrerr_M, qrmsk_000)) exit(EXIT_FAILURE);
 
   // レンダリング
-  uint8_t data[44] = {0};
-  uint8_t err[22] = {0};
+  uint8_t data[44 * 8] = {0};
+  uint8_t err[22 * 8] = {0};
   render(&mat, data, err);
 
   qr_matrix_dump(&mat);

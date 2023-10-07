@@ -8,6 +8,17 @@
 #include "f2x.h"
 #include "qrcode.h"
 
+#ifdef max
+#undef max
+#endif
+
+#ifdef min
+#undef min
+#endif
+
+#define max(a, b) ((a) < (b) ? (b) : (a))
+#define min(a, b) ((a) < (b) ? (a) : (b))
+
 int matrix_size(enum qr_version version) {
   // qrver_3 しか対応しない
   assert(version == qrver_3);
@@ -51,6 +62,8 @@ void qr_matrix_dump(struct qr_matrix *mat) {
         case QRMV_PRE_B:
           putchar('*');
           break;
+        default:
+          if (cell >= 10) putchar('0' + (cell - 10));
       }
     }
     putchar('\n');
@@ -117,6 +130,23 @@ static void render_square_pattern(struct qr_matrix *mat, struct coord crd,
       bool on_center = abs(dr) <= center_extra && abs(dc) <= center_extra;
       mat->data[r * mat_size + c] =
           on_border || on_center ? QRMV_PRE_B : QRMV_PRE_W;
+    }
+  }
+
+  // Finder パターンは外周をもう一つ分白く塗る仕様
+  if (is_finder) {
+    for (int dr = -pat_size - 1; dr <= pat_size + 1; dr++) {
+      for (int dc = -pat_size - 1; dc <= pat_size + 1; dc++) {
+        bool on_border = dr == -pat_size - 1 || dr == pat_size + 1 ||
+                         dc == -pat_size - 1 || dc == pat_size + 1;
+        if (!on_border) continue;
+
+        int r = crd.r + dr;
+        int c = crd.c + dc;
+        if (r < 0 || r >= mat_size || c < 0 || c >= mat_size) continue;
+
+        mat->data[r * mat_size + c] = QRMV_PRE_W;
+      }
     }
   }
 }
@@ -269,15 +299,137 @@ static void render_format_info(struct qr_matrix *mat) {
 #undef SET
 }
 
-void render(struct qr_matrix *mat, const uint8_t *data,
-            const uint8_t *error_codes) {
+struct data_iter {
+  uint8_t const *data;
+  uint8_t const *errcodes;
+  int max_dit, dit, max_eit, eit;
+};
+
+static void dit_init(struct data_iter *dit, enum qr_version version,
+                     enum qr_errmode mode, uint8_t const *data,
+                     uint8_t const *errcodes) {
+  dit->data = data;
+  dit->errcodes = errcodes;
+  dit->max_dit = 8 * num_blocks_data(version, mode);
+  dit->max_eit = 8 * num_blocks_err(version, mode);
+  dit->dit = dit->eit = 0;
+}
+
+static uint8_t const *dit_next(struct data_iter *dit) {
+  if (dit->dit < dit->max_dit) return &dit->data[dit->dit++];
+  if (dit->eit < dit->max_eit) return &dit->errcodes[dit->eit++];
+  return NULL;
+}
+
+struct coord_iter {
+  struct qr_matrix *mat;
+  struct coord curr;
+  int col_dir, row_dir;
+};
+
+static void cit_init(struct coord_iter *cit, struct qr_matrix *mat) {
+  int size = matrix_size(mat->version);
+  // 右下からスタート
+  // 最初の cit_next() で右下に入るよう、初期値はもう一つ分遠くにする
+  cit->mat = mat;
+  cit->curr.r = size - 1;
+  cit->curr.c = size;
+  cit->col_dir = 1;
+  cit->row_dir = 1;
+}
+
+static struct coord const *cit_step(struct coord_iter *cit) {
+  int size = matrix_size(cit->mat->version);
+
+  if (cit->curr.r >= size - 1 && cit->curr.c <= 0) {
+    // すでに尽くした
+    return NULL;
+  }
+
+  if (cit->curr.r == 0 && cit->col_dir == 1 && cit->row_dir == -1) {
+    // 上端まで到達
+    cit->curr.c--;
+    if (cit->curr.c == 6) {
+      // 第6列はタイミングパターンがあって一列全部潰れるのでスキップする仕様
+      cit->curr.c--;
+    }
+
+    cit->row_dir = 1;
+    cit->col_dir = -1;
+    return &cit->curr;
+  }
+
+  if (cit->curr.r == size - 1 && cit->col_dir == 1 && cit->row_dir == 1) {
+    // 下端まで到達
+    cit->curr.c--;
+    if (cit->curr.c == 6) {
+      // 第6列はタイミングパターンがあって一列全部潰れるのでスキップする仕様
+      cit->curr.c--;
+    }
+
+    cit->row_dir = -1;
+    cit->col_dir = -1;
+    return &cit->curr;
+  }
+
+  // それ以外
+  // 行を進めるのは col_dir == 1 のときのみ
+  cit->curr.r += cit->row_dir * max(0, cit->col_dir);
+  cit->curr.c += cit->col_dir;
+  cit->col_dir *= -1;
+  return &cit->curr;
+}
+
+static struct coord const *cit_next(struct coord_iter *cit) {
+  int mat_size = matrix_size(cit->mat->version);
+  struct coord const *curr;
+  while ((curr = cit_step(cit))) {
+    assert(curr->r >= 0 && curr->c >= 0 && curr->r < mat_size &&
+           curr->c < mat_size);
+    if (cit->mat->data[curr->r * mat_size + curr->c] == QRMV_UNINIT) {
+      return curr;
+    }
+  }
+
+  return NULL;
+}
+
+static void render_data(struct qr_matrix *mat, uint8_t const *data,
+                        uint8_t const *errcodes) {
+  struct data_iter dit;
+  dit_init(&dit, mat->version, mat->mode, data, errcodes);
+  dit_next(&dit);
+  assert(mat);
   assert(data);
-  assert(error_codes);
+  assert(errcodes);
+  // TODO
+}
+
+static void mask_data(struct qr_matrix *mat) {
+  // TODO
+  assert(mat);
+}
+
+void render(struct qr_matrix *mat, uint8_t const *data,
+            uint8_t const *errcodes) {
+  assert(data);
+  assert(errcodes);
 
   render_finders(mat);
   render_alignments(mat);
   render_timings(mat);
   render_format_info(mat);
+  render_data(mat, data, errcodes);
+  mask_data(mat);
 
+  struct coord const *curr;
+  struct coord_iter cit;
+  cit_init(&cit, mat);
+  int size = matrix_size(mat->version);
+  int counter = 0;
+  while ((curr = cit_next(&cit))) {
+    mat->data[curr->r * size + curr->c] = 10 + counter++;
+    counter %= 8;
+  }
   return;
 }

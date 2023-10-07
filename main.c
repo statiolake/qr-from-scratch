@@ -6,7 +6,7 @@
 
 int main(void) {
   struct qr_matrix mat = {0};
-  if (!qr_matrix_alloc(&mat, qrver_3, qrerr_M)) exit(EXIT_FAILURE);
+  if (!qr_matrix_alloc(&mat, qrver_3, qrerr_M, qrmsk_000)) exit(EXIT_FAILURE);
 
   // レンダリング
   uint8_t data[44] = {0};

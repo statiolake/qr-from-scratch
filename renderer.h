@@ -8,10 +8,10 @@
 
 // qr_matrixのdata
 #define QRMV_UNINIT 0
-#define QRMV_W 1
-#define QRMV_B 2
-#define QRMV_PRE_W 3
-#define QRMV_PRE_B 4
+#define QRMV_W 2
+#define QRMV_B 3
+#define QRMV_PRE_W 4
+#define QRMV_PRE_B 5
 
 #define QR_FORMAT_INFO_MASK 21522;  // 101010000010010
 
@@ -45,6 +45,8 @@ bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
 void qr_matrix_free(struct qr_matrix *mat);
 
 void qr_matrix_dump(struct qr_matrix *mat);
+
+void qr_matrix_dump_tsv(struct qr_matrix *mat);
 
 int num_blocks_data(enum qr_version version, enum qr_errmode mode);
 

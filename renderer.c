@@ -70,6 +70,32 @@ void qr_matrix_dump(struct qr_matrix *mat) {
   }
 }
 
+void qr_matrix_dump_tsv(struct qr_matrix *mat) {
+  int mat_size = matrix_size(mat->version);
+  for (int r = 0; r < mat_size; r++) {
+    for (int c = 0; c < mat_size; c++) {
+      if (c > 0) putchar('\t');
+      int cell = mat->data[r * mat_size + c];
+      switch (cell) {
+        case QRMV_UNINIT:
+          putchar('_');
+          break;
+        case QRMV_W:
+        case QRMV_PRE_W:
+          putchar('.');
+          break;
+        case QRMV_B:
+        case QRMV_PRE_B:
+          putchar('*');
+          break;
+        default:
+          if (cell >= 10) putchar('0' + (cell - 10));
+      }
+    }
+    putchar('\n');
+  }
+}
+
 int num_blocks_data(enum qr_version version, enum qr_errmode mode) {
   // qrver_3, qrerr_M しか対応しない
   assert(version == qrver_3);
@@ -386,7 +412,8 @@ static struct coord const *cit_next(struct coord_iter *cit) {
   while ((curr = cit_step(cit))) {
     assert(curr->r >= 0 && curr->c >= 0 && curr->r < mat_size &&
            curr->c < mat_size);
-    if (cit->mat->data[curr->r * mat_size + curr->c] == QRMV_UNINIT) {
+    uint8_t cell = cit->mat->data[curr->r * mat_size + curr->c];
+    if (cell != QRMV_PRE_W && cell != QRMV_PRE_B) {
       return curr;
     }
   }
@@ -398,16 +425,34 @@ static void render_data(struct qr_matrix *mat, uint8_t const *data,
                         uint8_t const *errcodes) {
   struct data_iter dit;
   dit_init(&dit, mat->version, mat->mode, data, errcodes);
-  dit_next(&dit);
-  assert(mat);
-  assert(data);
-  assert(errcodes);
-  // TODO
+
+  struct coord const *curr;
+  struct coord_iter cit;
+  cit_init(&cit, mat);
+
+  int size = matrix_size(mat->version);
+  while ((curr = cit_next(&cit))) {
+    uint8_t const *curr_data = dit_next(&dit);
+    uint8_t qrmv = curr_data && *curr_data ? QRMV_B : QRMV_W;
+    mat->data[curr->r * size + curr->c] = qrmv;
+  }
 }
 
 static void mask_data(struct qr_matrix *mat) {
-  // TODO
-  assert(mat);
+  assert(mat->mask == qrmsk_000);
+
+  struct coord const *curr;
+  struct coord_iter cit;
+  cit_init(&cit, mat);
+
+  int size = matrix_size(mat->version);
+  while ((curr = cit_next(&cit))) {
+    if ((curr->c + curr->r) % 2 == 0) {
+      // QRMV_W <-> QRMV_B の反転は最下位ビットの反転だけで完了する
+      // (QRMV_W == 0b10, QRMV_B == 0b11 なので)
+      mat->data[curr->r * size + curr->c] ^= 1;
+    }
+  }
 }
 
 void render(struct qr_matrix *mat, uint8_t const *data,
@@ -422,14 +467,5 @@ void render(struct qr_matrix *mat, uint8_t const *data,
   render_data(mat, data, errcodes);
   mask_data(mat);
 
-  struct coord const *curr;
-  struct coord_iter cit;
-  cit_init(&cit, mat);
-  int size = matrix_size(mat->version);
-  int counter = 0;
-  while ((curr = cit_next(&cit))) {
-    mat->data[curr->r * size + curr->c] = 10 + counter++;
-    counter %= 8;
-  }
   return;
 }

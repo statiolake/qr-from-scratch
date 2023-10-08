@@ -3,6 +3,7 @@
 
 #include "qrcode.h"
 #include "renderer.h"
+#include "painter.h"
 
 int main(void) {
   struct qr_matrix mat = {0};
@@ -17,6 +18,7 @@ int main(void) {
   }
 
   render(&mat, data, err);
+  paint();
 
   qr_matrix_dump_tsv(&mat);
   qr_matrix_free(&mat);

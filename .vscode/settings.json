@@ -1,4 +1,10 @@
 {
-    "editor.formatOnSave": true,
-    "C_Cpp.clang_format_fallbackStyle": "Google"
+  "editor.formatOnSave": true,
+  "C_Cpp.clang_format_fallbackStyle": "Google",
+  "C_Cpp.intelliSenseEngine": "disabled"
+  "files.associations": {
+    "*.wicurio": "wicurio",
+    "stdint.h": "c",
+    "stdlib.h": "c"
+  }
 }

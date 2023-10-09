@@ -7,6 +7,6 @@
 
 #include "renderer.h"
 
-bool paint(struct qr_matrix *mat);
+bool paint(char const *file_name, struct qr_matrix *mat);
 
 #endif

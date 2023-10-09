@@ -166,7 +166,7 @@ static void convert_to_bitmap(uint8_t *restrict dest,
   }
 }
 
-bool paint(struct qr_matrix *mat) {
+bool paint(char const *file_name, struct qr_matrix *mat) {
   assert(is_little_endian());
 
   struct BITMAPFILEHEADER fh = {
@@ -193,7 +193,7 @@ bool paint(struct qr_matrix *mat) {
       {0x00, 0x00, 0x00, 0},
   };
 
-  FILE *fp = fopen("test.bmp", "wb");
+  FILE *fp = fopen(file_name, "wb");
   if (!fp) return false;
 
   write_file_header(fp, &fh);

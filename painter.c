@@ -9,6 +9,10 @@
 #include "qrcode.h"
 #include "renderer.h"
 
+// CELL_SIZE, PADDING_SIZE は4の倍数にすること
+#define CELL_SIZE 24
+#define PADDING_SIZE (CELL_SIZE * 10)
+
 struct BITMAPFILEHEADER {
   char bfType[2];
   uint32_t bfSize;
@@ -61,12 +65,15 @@ static size_t compute_size(struct qr_matrix *mat) {
   size_t metadata_size = compute_metadata_size();
 
   // データのサイズ
-  // 各行を4の倍数にしないといけないらしい
   size_t mat_size = matrix_size(mat->version);
-  size_t line_width = (mat_size + 3) / 4 * 4;
+  assert(CELL_SIZE % 4 == 0);
+  assert(PADDING_SIZE % 4 == 0);
+
+  size_t bitmap_size = mat_size * CELL_SIZE + PADDING_SIZE * 2;
+
   // 今回は1画素1バイトにする (本当は1ビットでもいいんだけどちょっといい感じに
   // ビットを詰めるのは面倒なのでuint8_tのまま1バイトで扱っていく)
-  size_t data_size = mat_size * line_width;
+  size_t data_size = bitmap_size * bitmap_size;
 
   return metadata_size + data_size;
 }
@@ -106,28 +113,55 @@ static void write_bitmap_palette(FILE *fp, struct bitmap_palette *palette) {
          1);
 }
 
-static void write_bitmap(FILE *fp, int height, int width, uint8_t *bitmap) {
-  int bitmap_width = (width + 3) / 4 * 4;
-
-  uint8_t zero = 0;
+static void write_bitmap(FILE *fp, int bitmap_size, uint8_t *bitmap) {
   // ビットマップ形式の画像データは下から上へ、らしい
-  for (int r = height - 1; r >= 0; r--) {
-    int c;
-    for (c = 0; c < width; c++) {
-      fwrite(&bitmap[r * width + c], sizeof(uint8_t), 1, fp);
-    }
-    for (; c < bitmap_width; c++) {
-      fwrite(&zero, sizeof(uint8_t), 1, fp);
+  for (int r = bitmap_size - 1; r >= 0; r--) {
+    for (int c = 0; c < bitmap_size; c++) {
+      fwrite(&bitmap[r * bitmap_size + c], sizeof(uint8_t), 1, fp);
     }
   }
 }
 
 static void convert_to_bitmap(uint8_t *restrict dest,
-                              uint8_t const *restrict src, int size) {
-  for (int r = 0; r < size; r++) {
-    for (int c = 0; c < size; c++) {
-      assert(src[r * size + c]);
-      dest[r * size + c] = src[r * size + c] & 0x1;
+                              uint8_t const *restrict src, int mat_size) {
+  int qr_size = mat_size * CELL_SIZE;
+  int bitmap_size = qr_size + PADDING_SIZE * 2;
+
+  // 上のパディング
+  for (int r = 0; r < PADDING_SIZE; r++) {
+    for (int c = 0; c < bitmap_size; c++) {
+      dest[r * bitmap_size + c] = 0;
+    }
+  }
+
+  // QRコード部分
+  for (int r = 0; r < qr_size; r++) {
+    // 左のパディング
+    for (int c = 0; c < PADDING_SIZE; c++) {
+      dest[(PADDING_SIZE + r) * bitmap_size + c] = 0;
+    }
+
+    // データ部分
+    for (int c = 0; c < qr_size; c++) {
+      int qr_r = r / CELL_SIZE, qr_c = c / CELL_SIZE;
+      // printf("%d, %d\n", qr_r, qr_c);
+
+      int value = src[qr_r * mat_size + qr_c];
+      // QRMV_UNINIT でないことを確認しておく
+      assert(value);
+      dest[(PADDING_SIZE + r) * bitmap_size + (PADDING_SIZE + c)] = value & 1;
+    }
+
+    // 右のパディング
+    for (int c = 0; c < PADDING_SIZE; c++) {
+      dest[(PADDING_SIZE + r) * bitmap_size + (PADDING_SIZE + qr_size + c)] = 0;
+    }
+  }
+
+  // 下のパディング
+  for (int r = 0; r < PADDING_SIZE; r++) {
+    for (int c = 0; c < bitmap_size; c++) {
+      dest[(PADDING_SIZE + qr_size + r) * bitmap_size + c] = 0;
     }
   }
 }
@@ -142,10 +176,12 @@ bool paint(struct qr_matrix *mat) {
   };
 
   int mat_size = matrix_size(mat->version);
+  int qr_size = mat_size * CELL_SIZE;
+  int bitmap_size = qr_size + PADDING_SIZE * 2;
   struct BITMAPINFOHEADER ih = {
       .bcSize = 40,
-      .bcWidth = mat_size,
-      .bcHeight = mat_size,
+      .bcWidth = bitmap_size,
+      .bcHeight = bitmap_size,
       .bcPlanes = 1,
       .bcBitCount = 8,
       .biCompression = 0,  // 無圧縮
@@ -164,9 +200,9 @@ bool paint(struct qr_matrix *mat) {
   write_info_header(fp, &ih);
   write_bitmap_palette(fp, &pals[0]);
   write_bitmap_palette(fp, &pals[1]);
-  uint8_t *bitmap = (uint8_t *)malloc(mat_size * mat_size);
+  uint8_t *bitmap = (uint8_t *)malloc(bitmap_size * bitmap_size);
   convert_to_bitmap(bitmap, mat->data, mat_size);
-  write_bitmap(fp, mat_size, mat_size, bitmap);
+  write_bitmap(fp, bitmap_size, bitmap);
 
   fclose(fp);
 

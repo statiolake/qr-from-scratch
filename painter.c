@@ -203,6 +203,7 @@ bool paint(char const *file_name, struct qr_matrix *mat) {
   uint8_t *bitmap = (uint8_t *)malloc(bitmap_size * bitmap_size);
   convert_to_bitmap(bitmap, mat->data, mat_size);
   write_bitmap(fp, bitmap_size, bitmap);
+  free(bitmap);
 
   fclose(fp);
 

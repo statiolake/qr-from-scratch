@@ -7,8 +7,6 @@
 
 #include "renderer.h"
 
-size_t compute_size(struct qr_matrix *mat);
-
-void paint(uint8_t *buf, struct qr_matrix *mat);
+bool paint(struct qr_matrix *mat);
 
 #endif

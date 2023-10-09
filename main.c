@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "painter.h"
 #include "qrcode.h"
 #include "renderer.h"
-#include "painter.h"
 
 int main(void) {
   struct qr_matrix mat = {0};
@@ -18,7 +18,7 @@ int main(void) {
   }
 
   render(&mat, data, err);
-  paint();
+  paint(&mat);
 
   qr_matrix_dump_tsv(&mat);
   qr_matrix_free(&mat);

@@ -5,7 +5,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "f2x.h"
+#include "field.h"
+#include "kx.h"
 #include "qrcode.h"
 
 #ifdef max
@@ -237,16 +238,16 @@ static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
 #undef BITS_OF
 
   // 誤り訂正符号を計算する
-  struct f2x f;
-  assert(f2x_alloc(&f, 14));
+  struct kx f;
+  assert(kx_alloc(ft_gf2, &f, 14));
   f.coeffs[14] = bits[0];
   f.coeffs[13] = bits[1];
   f.coeffs[12] = bits[2];
   f.coeffs[11] = bits[3];
   f.coeffs[10] = bits[4];
 
-  struct f2x g;
-  assert(f2x_alloc(&g, 10));
+  struct kx g;
+  assert(kx_alloc(ft_gf2, &g, 10));
   g.coeffs[10] = 1;
   g.coeffs[8] = 1;
   g.coeffs[5] = 1;
@@ -255,24 +256,24 @@ static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
   g.coeffs[1] = 1;
   g.coeffs[0] = 1;
 
-  struct f2x q, r;
-  assert(f2x_alloc_div(&q, &r, &f, &g));
+  struct kx q, r;
+  assert(kx_alloc_div(&q, &r, &f, &g));
 
-  bits[5] = f2x_get_coeffs(&r, 9);
-  bits[6] = f2x_get_coeffs(&r, 8);
-  bits[7] = f2x_get_coeffs(&r, 7);
-  bits[8] = f2x_get_coeffs(&r, 6);
-  bits[9] = f2x_get_coeffs(&r, 5);
-  bits[10] = f2x_get_coeffs(&r, 4);
-  bits[11] = f2x_get_coeffs(&r, 3);
-  bits[12] = f2x_get_coeffs(&r, 2);
-  bits[13] = f2x_get_coeffs(&r, 1);
-  bits[14] = f2x_get_coeffs(&r, 0);
+  bits[5] = kx_get_coeffs(&r, 9);
+  bits[6] = kx_get_coeffs(&r, 8);
+  bits[7] = kx_get_coeffs(&r, 7);
+  bits[8] = kx_get_coeffs(&r, 6);
+  bits[9] = kx_get_coeffs(&r, 5);
+  bits[10] = kx_get_coeffs(&r, 4);
+  bits[11] = kx_get_coeffs(&r, 3);
+  bits[12] = kx_get_coeffs(&r, 2);
+  bits[13] = kx_get_coeffs(&r, 1);
+  bits[14] = kx_get_coeffs(&r, 0);
 
-  f2x_free(&f);
-  f2x_free(&g);
-  f2x_free(&q);
-  f2x_free(&r);
+  kx_free(&f);
+  kx_free(&g);
+  kx_free(&q);
+  kx_free(&r);
 
   // 出力をマスクする
   int pattern[] = {1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0};

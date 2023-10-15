@@ -1,13 +1,22 @@
 #include <assert.h>
+#include <stdio.h>
 
 #include "field.h"
 #include "gf256.h"
 #include "kx.h"
 
 int main(void) {
+  assert(gf256_add(15, 15) == 0);
+  assert(gf256_add(6, 5) == 3);
+  assert(gf256_sub(6, 5) == 3);
+  assert(gf256_mul(6, 3) == 10);
+  assert(gf256_mul(7, 11) == 49);
+  assert(gf256_div(9, 3) == 7);
+  assert(gf256_div(12, 5) == 247);
+
   struct kx g;
   assert(kx_alloc(ft_gf256, &g, 17));
-  g.coeffs[17] = gf256_from_exp(1);
+  g.coeffs[17] = gf256_from_exp(0);
   g.coeffs[16] = gf256_from_exp(43);
   g.coeffs[15] = gf256_from_exp(139);
   g.coeffs[14] = gf256_from_exp(206);

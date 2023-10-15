@@ -198,6 +198,9 @@ void kx_dump(struct kx *kx) {
     if (kx->coeffs[d] > 0) {
       if (!is_first) printf(" + ");
       is_first = false;
+      if (kx->coeffs[d] > 1) {
+        printf("%d", kx->coeffs[d]);
+      }
       printf("x^%d", d);
     }
   }

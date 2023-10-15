@@ -6,7 +6,7 @@
 #include "kx.h"
 
 // GF(2^8) --- GF(2)[x]/(x^8 + x^4 + x^3 + x^2 + 1)
-// 7 == 0b111 -> x^2 + x^1 + x^0 == x^?
+// 7 == 0b111 -> x^2 + x^1 + x^0 ≡ x^?
 
 void gf256_validate(int n) { assert(n < 256); }
 
@@ -35,7 +35,7 @@ static int to_256mod(struct kx *kx) {
 static int table_to_exp[256];
 static int table_to_256mod[256];
 
-static bool init_tables() {
+static bool init_tables(void) {
   // 初回
   // 最初は-1にしておく (あと0は特例で-1のまま)
   for (int i = 0; i < 256; i++) table_to_exp[i] = -1;
@@ -54,10 +54,11 @@ static bool init_tables() {
     kx_free(&curr);
     return false;
   }
+  x.coeffs[1] = 1;
 
   // 同一視する多項式
   struct kx mod;
-  if (!kx_alloc(ft_gf2, &x, 8)) {
+  if (!kx_alloc(ft_gf2, &mod, 8)) {
     kx_free(&curr);
     kx_free(&x);
     return false;
@@ -87,6 +88,7 @@ static bool init_tables() {
 
     // 次に、next_before_wrapping に x^8 が含まれていた場合は
     // x^8 を x^4 + x^3 + x^2 + x^0 にする
+    // (係数が GF(2) なので x^8 + x^4 + x^3 + x^2 + x^0 で剰余をとるのと同じ)
     assert(next_before_wrapping.dim <= 8);
     struct kx next;
     if (kx_get_coeffs(&next_before_wrapping, 8) == 1) {
@@ -114,6 +116,11 @@ static bool init_tables() {
   for (int i = 1; i < 256; i++) {
     assert(table_to_exp[i] >= 0);
   }
+  // あと x^255 ≡ 1 になるはず。つまり、上のループは curr_exp == 255 で止まっ
+  // ているはず。
+  // (指数部分は特殊ケースの0多項式があるので、ループ自体は0～254の255通りになる)
+  assert(curr_exp == 255);
+  table_to_256mod[255] = 1;
 
   // 一時変数たちを解放する
   kx_free(&curr);
@@ -147,7 +154,12 @@ static bool simplify_alloc(struct kx *res, struct kx *orig) {
 }
 
 int gf256_from_exp(int exp) {
-  assert(exp < 256);
+  assert(exp < 255);
+  if (table_to_256mod[exp] == 0) {
+    assert(init_tables());
+    assert(table_to_256mod[exp] > 0);
+  }
+
   return table_to_256mod[exp];
 }
 
@@ -167,7 +179,7 @@ int gf256_sub(int a, int b) {
   struct kx kxa, kxb, res;
   assert(to_gf2xmod_alloc(&kxa, a));
   assert(to_gf2xmod_alloc(&kxb, b));
-  kx_sub_alloc(&res, &kxa, &kxb);
+  assert(kx_sub_alloc(&res, &kxa, &kxb));
   int n = to_256mod(&res);
   kx_free(&kxa);
   kx_free(&kxb);
@@ -179,7 +191,7 @@ int gf256_mul(int a, int b) {
   struct kx kxa, kxb, minpoly, res, quot, rem;
 
   // GF(2^8)の原始多項式
-  kx_alloc(ft_gf2, &minpoly, 8);
+  assert(kx_alloc(ft_gf2, &minpoly, 8));
   minpoly.coeffs[8] = 1;
   minpoly.coeffs[4] = 1;
   minpoly.coeffs[3] = 1;
@@ -188,10 +200,10 @@ int gf256_mul(int a, int b) {
 
   assert(to_gf2xmod_alloc(&kxa, a));
   assert(to_gf2xmod_alloc(&kxb, b));
-  kx_mul_alloc(&res, &kxa, &kxb);
+  assert(kx_mul_alloc(&res, &kxa, &kxb));
 
   // 剰余をとる
-  kx_div_alloc(&quot, &rem, &res, &minpoly);
+  assert(kx_div_alloc(&quot, &rem, &res, &minpoly));
   int n = to_256mod(&rem);
 
   kx_free(&kxa);
@@ -203,4 +215,39 @@ int gf256_mul(int a, int b) {
   return n;
 }
 
-int gf256_div(int a, int b) { assert(false); }
+int gf256_div(int a, int b) {
+  assert(b != 0);
+
+  struct kx kxa, kxb;
+  assert(to_gf2xmod_alloc(&kxa, a));
+  assert(to_gf2xmod_alloc(&kxb, b));
+
+  // 単純にする
+  struct kx kxsa, kxsb;
+  assert(simplify_alloc(&kxsa, &kxa));
+  assert(simplify_alloc(&kxsb, &kxb));
+
+  // もし kxsa のほうが次元が低い場合は、kxsa を x^255 倍する
+  // (x^255 ≡ 1 なので問題ない)
+  if (kxsa.dim < kxsb.dim) {
+    struct kx x255;
+    assert(kx_alloc(ft_gf2, &x255, 255));
+    x255.coeffs[255] = 1;
+    struct kx kxsae;
+    assert(kx_mul_alloc(&kxsae, &kxsa, &x255));
+    kx_free(&kxsa);
+    kxsa = kxsae;
+  }
+
+  // 割る
+  struct kx q, r;
+  assert(kx_div_alloc(&q, &r, &kxsa, &kxsb));
+  assert(r.dim == 0 && r.coeffs[0] == 0);
+
+  // q = x^? みたいになっているはず。チェック。
+  for (int i = 0; i < q.dim; i++) assert(q.coeffs[i] == 0);
+  assert(q.coeffs[q.dim] == 1);
+
+  // x^? の ? を 256mod に直す。
+  return gf256_from_exp(q.dim);
+}

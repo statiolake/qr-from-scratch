@@ -257,7 +257,7 @@ static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
   g.coeffs[0] = 1;
 
   struct kx q, r;
-  assert(kx_alloc_div(&q, &r, &f, &g));
+  assert(kx_div_alloc(&q, &r, &f, &g));
 
   bits[5] = kx_get_coeffs(&r, 9);
   bits[6] = kx_get_coeffs(&r, 8);

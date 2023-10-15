@@ -78,7 +78,7 @@ static bool init_tables() {
     // 次を計算
     // まずは単純にxをかけた多項式を計算する
     struct kx next_before_wrapping;
-    if (!kx_alloc_mul(&next_before_wrapping, &curr, &x)) {
+    if (!kx_mul_alloc(&next_before_wrapping, &curr, &x)) {
       kx_free(&curr);
       kx_free(&x);
       kx_free(&mod);
@@ -91,7 +91,7 @@ static bool init_tables() {
     struct kx next;
     if (kx_get_coeffs(&next_before_wrapping, 8) == 1) {
       // x^8 をより低次の多項式にする
-      if (!kx_alloc_add(&next, &next_before_wrapping, &mod)) {
+      if (!kx_add_alloc(&next, &next_before_wrapping, &mod)) {
         kx_free(&curr);
         kx_free(&x);
         kx_free(&mod);
@@ -155,7 +155,7 @@ int gf256_add(int a, int b) {
   struct kx kxa, kxb, res;
   assert(to_gf2xmod_alloc(&kxa, a));
   assert(to_gf2xmod_alloc(&kxb, b));
-  kx_alloc_add(&res, &kxa, &kxb);
+  kx_add_alloc(&res, &kxa, &kxb);
   int n = to_256mod(&res);
   kx_free(&kxa);
   kx_free(&kxb);
@@ -167,7 +167,7 @@ int gf256_sub(int a, int b) {
   struct kx kxa, kxb, res;
   assert(to_gf2xmod_alloc(&kxa, a));
   assert(to_gf2xmod_alloc(&kxb, b));
-  kx_alloc_sub(&res, &kxa, &kxb);
+  kx_sub_alloc(&res, &kxa, &kxb);
   int n = to_256mod(&res);
   kx_free(&kxa);
   kx_free(&kxb);
@@ -188,10 +188,10 @@ int gf256_mul(int a, int b) {
 
   assert(to_gf2xmod_alloc(&kxa, a));
   assert(to_gf2xmod_alloc(&kxb, b));
-  kx_alloc_mul(&res, &kxa, &kxb);
+  kx_mul_alloc(&res, &kxa, &kxb);
 
   // 剰余をとる
-  kx_alloc_div(&quot, &rem, &res, &minpoly);
+  kx_div_alloc(&quot, &rem, &res, &minpoly);
   int n = to_256mod(&rem);
 
   kx_free(&kxa);

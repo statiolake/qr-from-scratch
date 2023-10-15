@@ -57,7 +57,7 @@ static void validate(struct kx const *kx) {
   }
 }
 
-bool kx_alloc_add(struct kx *res, struct kx *a, struct kx *b) {
+bool kx_add_alloc(struct kx *res, struct kx *a, struct kx *b) {
   assert(a->k == b->k);
   validate(a);
   validate(b);
@@ -77,7 +77,7 @@ bool kx_alloc_add(struct kx *res, struct kx *a, struct kx *b) {
   return true;
 }
 
-bool kx_alloc_sub(struct kx *res, struct kx *a, struct kx *b) {
+bool kx_sub_alloc(struct kx *res, struct kx *a, struct kx *b) {
   assert(a->k == b->k);
   validate(a);
   validate(b);
@@ -97,7 +97,7 @@ bool kx_alloc_sub(struct kx *res, struct kx *a, struct kx *b) {
   return true;
 }
 
-bool kx_alloc_mul(struct kx *res, struct kx *a, struct kx *b) {
+bool kx_mul_alloc(struct kx *res, struct kx *a, struct kx *b) {
   assert(a->k == b->k);
   validate(a);
   validate(b);
@@ -121,7 +121,7 @@ bool kx_alloc_mul(struct kx *res, struct kx *a, struct kx *b) {
   return true;
 }
 
-bool kx_alloc_div(struct kx *quot, struct kx *rem, struct kx *a, struct kx *b) {
+bool kx_div_alloc(struct kx *quot, struct kx *rem, struct kx *a, struct kx *b) {
   assert(a->k == b->k);
   validate(a);
   validate(b);
@@ -160,7 +160,7 @@ bool kx_alloc_div(struct kx *quot, struct kx *rem, struct kx *a, struct kx *b) {
 
       // 立てた商とbをかけ、あまりから引く数を作る
       struct kx to_sub;
-      if (!kx_alloc_mul(&to_sub, &curr_quot, b)) {
+      if (!kx_mul_alloc(&to_sub, &curr_quot, b)) {
         kx_free(quot);
         kx_free(rem);
         kx_free(&curr_quot);
@@ -169,7 +169,7 @@ bool kx_alloc_div(struct kx *quot, struct kx *rem, struct kx *a, struct kx *b) {
 
       // remからrsを引く。
       struct kx next_rem;
-      if (!kx_alloc_sub(&next_rem, rem, &to_sub)) {
+      if (!kx_sub_alloc(&next_rem, rem, &to_sub)) {
         kx_free(quot);
         kx_free(rem);
         kx_free(&curr_quot);

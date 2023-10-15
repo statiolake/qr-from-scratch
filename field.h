@@ -3,6 +3,7 @@
 
 enum field_type {
   ft_gf2,
+  ft_gf256,
 };
 
 void field_validate(enum field_type ft, int n);

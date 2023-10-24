@@ -2,6 +2,10 @@
 qrcode
 test_gf256
 
+# Artifacts
+*.bmp
+*.png
+
 # Prerequisites
 *.d
 

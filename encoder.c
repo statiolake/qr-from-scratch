@@ -151,6 +151,28 @@ static bool compute_g_alloc(struct kx *g, int num_blocks_err) {
   return true;
 }
 
+static bool errcodes_encode_f_alloc(struct kx *f, uint8_t const *data,
+                                    int data_len) {
+  assert(data_len > 0);
+  if (!kx_alloc(ft_gf256, f, data_len - 1)) return false;
+
+  for (int i = 0; i < data_len; i++) {
+    int dim = data_len - i;
+
+    // 連続8ビットを整数値にする
+    int num = 0;
+    for (int j = 0; j < 8; j++) {
+      // 順当に左から読むと考えるので、data[x]のxが小さい順に高い位のビットで
+      // あることに注意
+      num |= data[i * 8 + j] << (7 - j);
+    }
+
+    f->coeffs[dim] = num;
+  }
+
+  return true;
+}
+
 static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
                             uint8_t *errcodes) {
   assert(cfg);
@@ -161,6 +183,13 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
   struct kx g;
   assert(compute_g_alloc(&g, num_blocks_err(cfg->version, cfg->errmode)));
 
+  // データを多項式 f(x) の形にする
+  struct kx f;
+  assert(errcodes_encode_f_alloc(&f, data,
+                                 num_blocks_data(cfg->version, cfg->errmode)));
+  kx_dump(&f);
+
+  kx_free(&f);
   kx_free(&g);
 }
 

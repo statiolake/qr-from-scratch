@@ -210,50 +210,25 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
   assert(errcodes_encode_f_alloc(&f, data, num_blocks_data(cfg),
                                  num_blocks_err(cfg)));
 
-  // f(x) を g(x) で割ったあまり r(x) の係数が求める符号
+  // f(x) を g(x) で割ったあまり r(x) の係数が求める符号なので、計算する
   struct kx q, r;
   assert(kx_div_alloc(&q, &r, &f, &g));
+  kx_free(&q);
+  kx_free(&f);
+  kx_free(&g);
 
-  printf("\n");
-  printf("f: ");
-  kx_dump(&f);
-  printf("\n");
-  printf("g: ");
-  kx_dump(&g);
-  printf("\n");
-  printf("r: ");
-  kx_dump(&r);
-  printf("\n");
-
+  // r(x) を errcodes に転記する
   struct write_cursor cursor;
   cursor_init_write(&cursor, errcodes, num_blocks_err(cfg) * 8);
-
   for (int dim = num_blocks_err(cfg) - 1; dim >= 0; dim--) {
     cursor_put_octet(&cursor, kx_get_coeffs(&r, dim));
   }
 
   kx_free(&r);
-  kx_free(&q);
-  kx_free(&f);
-  kx_free(&g);
 }
 
 void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
             uint8_t *errcodes) {
   data_encode(cfg, str, data);
   errcodes_encode(cfg, data, errcodes);
-
-  // debug
-  struct read_cursor dc, ec;
-  cursor_init_read(&dc, data, num_blocks_data(cfg) * 8);
-  cursor_init_read(&ec, errcodes, num_blocks_err(cfg) * 8);
-  for (int i = 0; i < num_blocks_data(cfg); i++) {
-    printf("%d ", cursor_get_octet(&dc));
-  }
-  printf("\n");
-
-  for (int i = 0; i < num_blocks_err(cfg); i++) {
-    printf("%d ", cursor_get_octet(&ec));
-  }
-  printf("\n");
 }

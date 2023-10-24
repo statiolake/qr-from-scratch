@@ -20,14 +20,6 @@ int main(int argc, char *argv[]) {
   uint8_t errcodes[22 * 8] = {0};
 
   encode(&config, "abcdefghijklmnopqrstuvwxyz", data, errcodes);
-  for (int i = 0; i < 44; i++) {
-    uint8_t as_value = (data[i * 8 + 0] << 7) | (data[i * 8 + 1] << 6) |
-                       (data[i * 8 + 2] << 5) | (data[i * 8 + 3] << 4) |
-                       (data[i * 8 + 4] << 3) | (data[i * 8 + 5] << 2) |
-                       (data[i * 8 + 6] << 1) | (data[i * 8 + 7] << 0);
-    printf("%d ", as_value);
-  }
-  printf("\n");
 
   const char *output_file_name = argc > 1 ? argv[1] : "output.bmp";
   render(&mat, data, errcodes);

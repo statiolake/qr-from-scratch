@@ -28,7 +28,7 @@ int main(int argc, char *argv[]) {
 
   const char *output_file_name = argc > 1 ? argv[1] : "output.bmp";
 
-  encode(&cfg, "abcdefghijklmnopqrstuvwxyz", data, errcodes);
+  encode(&cfg, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnop", data, errcodes);
   render(&mat, data, errcodes);
   paint(output_file_name, &mat);
 

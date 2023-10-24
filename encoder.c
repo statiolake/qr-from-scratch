@@ -7,7 +7,7 @@
 #include <string.h>
 
 #include "qrcode.h"
-#include "renderer.h"
+#include "traits.h"
 
 struct cursor {
   uint8_t *buf;
@@ -42,40 +42,42 @@ static void cursor_put_octet(struct cursor *cursor, uint8_t octet) {
   }
 }
 
-static void encode_mode(struct qr_config const *cfg, struct cursor *cursor) {
+static void data_encode_mode(struct qr_config const *cfg,
+                             struct cursor *cursor) {
   assert(cfg->encmode == qrenc_8bit);
   // 8bit -> 0100
   cursor_put_bits(cursor, 4, 0, 1, 0, 0);
 }
 
-static void encode_strlen(struct qr_config const *cfg, struct cursor *cursor,
-                          int len) {
+static void data_encode_strlen(struct qr_config const *cfg,
+                               struct cursor *cursor, int len) {
   assert(cfg->encmode == qrenc_8bit);
   // 8bitモードでは8bitで文字数を指定する
   assert(len < 256);
   cursor_put_octet(cursor, (uint8_t)len);
 }
 
-static void encode_str(struct cursor *cursor, char const *str) {
+static void data_encode_str(struct cursor *cursor, char const *str) {
   while (*str) {
     cursor_put_octet(cursor, *str);
     str++;
   }
 }
 
-static void add_terminator(struct cursor *cursor) {
+static void data_add_terminator(struct cursor *cursor) {
   // 終端に4ビット以上の空きがある場合は終端パターンとして0000を追加する
   if (cursor->size - cursor->index < 4) return;
   cursor_put_bits(cursor, 4, 0, 0, 0, 0);
 }
 
-static void align_data(struct cursor *cursor) {
+static void data_align(struct cursor *cursor) {
   // 8ビットごとに区切り、最後のグループのサイズを調整する
   int extra = (8 - cursor->index % 8) % 8;
   for (int i = 0; i < extra; i++) cursor_put_bit(cursor, 0);
 }
 
-static void add_padding(struct qr_config const *cfg, struct cursor *cursor) {
+static void data_add_padding(struct qr_config const *cfg,
+                             struct cursor *cursor) {
   // 残りの容量を11101100と00010001で埋める
   static uint8_t patterns[][8] = {
       {1, 1, 1, 0, 1, 1, 0, 0},
@@ -93,21 +95,38 @@ static void add_padding(struct qr_config const *cfg, struct cursor *cursor) {
   }
 }
 
-void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
-            uint8_t *errcodes) {
-  assert(errcodes);
+static void data_encode(struct qr_config const *cfg, char const *str,
+                        uint8_t *data) {
   struct cursor cursor = {0};
   cursor_init(&cursor, data, num_blocks_data(cfg->version, cfg->errmode) * 8);
 
-  encode_mode(cfg, &cursor);
-  encode_strlen(cfg, &cursor, strlen(str));
-  encode_str(&cursor, str);
-  add_terminator(&cursor);
-  align_data(&cursor);
+  data_encode_mode(cfg, &cursor);
+  data_encode_strlen(cfg, &cursor, strlen(str));
+  data_encode_str(&cursor, str);
+
+  data_add_terminator(&cursor);
+
+  data_align(&cursor);
   assert(cursor.index % 8 == 0);
-  add_padding(cfg, &cursor);
+
+  data_add_padding(cfg, &cursor);
 
   assert(cursor.index == cursor.size);
+}
+
+static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
+                            uint8_t *errcodes) {
+  assert(cfg);
+  assert(data);
+  assert(errcodes);
+}
+
+void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
+            uint8_t *errcodes) {
+  assert(errcodes);
+
+  data_encode(cfg, str, data);
+  errcodes_encode(cfg, data, errcodes);
 }
 
 // int main(void) {

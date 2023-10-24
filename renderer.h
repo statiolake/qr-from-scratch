@@ -48,12 +48,6 @@ void qr_matrix_dump(struct qr_matrix *mat);
 
 void qr_matrix_dump_tsv(struct qr_matrix *mat);
 
-int num_blocks_data(enum qr_version version, enum qr_errmode mode);
-
-int num_blocks_err(enum qr_version version, enum qr_errmode mode);
-
-int num_blocks_rs(enum qr_version version, enum qr_errmode mode);
-
 void render(struct qr_matrix *mat, uint8_t const *data, uint8_t const *err);
 
 #endif

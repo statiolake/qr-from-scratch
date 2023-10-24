@@ -1,5 +1,6 @@
 # Executable
 qrcode
+test_gf256
 
 # Prerequisites
 *.d

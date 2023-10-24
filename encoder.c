@@ -196,10 +196,6 @@ static bool errcodes_encode_f_alloc(struct kx *f, uint8_t const *data,
 
 static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
                             uint8_t *errcodes) {
-  assert(cfg);
-  assert(data);
-  assert(errcodes);
-
   // 生成多項式 g(x) を計算する
   struct kx g;
   assert(compute_g_alloc(&g, num_blocks_err(cfg)));

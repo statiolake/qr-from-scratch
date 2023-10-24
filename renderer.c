@@ -269,39 +269,39 @@ static void render_format_info(struct qr_matrix *mat) {
   int size = matrix_size(mat->cfg->version);
 #define SET(r, c, v) mat->data[(r)*size + (c)] = (v ? QRMV_PRE_B : QRMV_PRE_W)
   // 左上に埋めるパターン
-  SET(0, 8, bits[0]);
-  SET(1, 8, bits[1]);
-  SET(2, 8, bits[2]);
-  SET(3, 8, bits[3]);
-  SET(4, 8, bits[4]);
-  SET(5, 8, bits[5]);
-  SET(7, 8, bits[6]);
+  SET(0, 8, bits[14]);
+  SET(1, 8, bits[13]);
+  SET(2, 8, bits[12]);
+  SET(3, 8, bits[11]);
+  SET(4, 8, bits[10]);
+  SET(5, 8, bits[9]);
+  SET(7, 8, bits[8]);
   SET(8, 8, bits[7]);
-  SET(8, 7, bits[8]);
-  SET(8, 5, bits[9]);
-  SET(8, 4, bits[10]);
-  SET(8, 3, bits[11]);
-  SET(8, 2, bits[12]);
-  SET(8, 1, bits[13]);
-  SET(8, 0, bits[14]);
+  SET(8, 7, bits[6]);
+  SET(8, 5, bits[5]);
+  SET(8, 4, bits[4]);
+  SET(8, 3, bits[3]);
+  SET(8, 2, bits[2]);
+  SET(8, 1, bits[1]);
+  SET(8, 0, bits[0]);
 
   // 右上と左下に埋めるパターン
-  SET(8, size - 1, bits[0]);
-  SET(8, size - 2, bits[1]);
-  SET(8, size - 3, bits[2]);
-  SET(8, size - 4, bits[3]);
-  SET(8, size - 5, bits[4]);
-  SET(8, size - 6, bits[5]);
-  SET(8, size - 7, bits[6]);
+  SET(8, size - 1, bits[14]);
+  SET(8, size - 2, bits[13]);
+  SET(8, size - 3, bits[12]);
+  SET(8, size - 4, bits[11]);
+  SET(8, size - 5, bits[10]);
+  SET(8, size - 6, bits[9]);
+  SET(8, size - 7, bits[8]);
   SET(8, size - 8, bits[7]);
   SET(size - 8, 8, 1);
-  SET(size - 7, 8, bits[8]);
-  SET(size - 6, 8, bits[9]);
-  SET(size - 5, 8, bits[10]);
-  SET(size - 4, 8, bits[11]);
-  SET(size - 3, 8, bits[12]);
-  SET(size - 2, 8, bits[13]);
-  SET(size - 1, 8, bits[14]);
+  SET(size - 7, 8, bits[6]);
+  SET(size - 6, 8, bits[5]);
+  SET(size - 5, 8, bits[4]);
+  SET(size - 4, 8, bits[3]);
+  SET(size - 3, 8, bits[2]);
+  SET(size - 2, 8, bits[1]);
+  SET(size - 1, 8, bits[0]);
 #undef SET
 }
 

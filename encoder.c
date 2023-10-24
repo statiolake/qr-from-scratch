@@ -180,15 +180,20 @@ static bool compute_g_alloc(struct kx *g, int num_blocks_err) {
 }
 
 static bool errcodes_encode_f_alloc(struct kx *f, uint8_t const *data,
-                                    int num_blocks_data) {
+                                    int num_blocks_data, int num_blocks_err) {
+  // 単純にデータを係数として f(x) に詰めるだけ。
+  // 最下位の次元を num_blocks_err にするという仕様があることに注意。
   assert(num_blocks_data > 0);
-  if (!kx_alloc(ft_gf256, f, num_blocks_data - 1)) return false;
+  if (!kx_alloc(ft_gf256, f, num_blocks_data + num_blocks_err - 1))
+    return false;
 
   struct read_cursor cursor;
 
   cursor_init_read(&cursor, data, num_blocks_data * 8);
   for (int dim = num_blocks_data - 1; dim >= 0; dim--) {
-    f->coeffs[dim] = cursor_get_octet(&cursor);
+    // たんに前から順に詰めるだけだけど、最下位次元を num_blocks_err にするた
+    // めに下駄をはかせている。
+    f->coeffs[dim + num_blocks_err] = cursor_get_octet(&cursor);
   }
 
   return true;
@@ -202,8 +207,10 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
 
   // データを多項式 f(x) の形にする
   struct kx f;
-  assert(errcodes_encode_f_alloc(&f, data, num_blocks_data(cfg)));
+  assert(errcodes_encode_f_alloc(&f, data, num_blocks_data(cfg),
+                                 num_blocks_err(cfg)));
 
+  // f(x) を g(x) で割ったあまり r(x) の係数が求める符号
   struct kx q, r;
   assert(kx_div_alloc(&q, &r, &f, &g));
 

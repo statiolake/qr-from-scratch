@@ -11,25 +11,39 @@
 #include "qrcode.h"
 #include "traits.h"
 
-struct cursor {
+struct write_cursor {
   uint8_t *buf;
   int index;
   int size;
 };
 
-static void cursor_init(struct cursor *cursor, uint8_t *buf, int size) {
+struct read_cursor {
+  uint8_t const *buf;
+  int index;
+  int size;
+};
+
+static void cursor_init_write(struct write_cursor *cursor, uint8_t *buf,
+                              int size) {
   cursor->buf = buf;
   cursor->index = 0;
   cursor->size = size;
 }
 
-static void cursor_put_bit(struct cursor *cursor, uint8_t bit) {
+static void cursor_init_read(struct read_cursor *cursor, uint8_t const *buf,
+                             int size) {
+  cursor->buf = buf;
+  cursor->index = 0;
+  cursor->size = size;
+}
+
+static void cursor_put_bit(struct write_cursor *cursor, uint8_t bit) {
   assert(bit == 0 || bit == 1);
   assert(cursor->index < cursor->size);
   cursor->buf[cursor->index++] = bit;
 }
 
-static void cursor_put_bits(struct cursor *cursor, int n, ...) {
+static void cursor_put_bits(struct write_cursor *cursor, int n, ...) {
   va_list args;
   va_start(args, n);
   for (int i = 0; i < n; i++) {
@@ -38,48 +52,62 @@ static void cursor_put_bits(struct cursor *cursor, int n, ...) {
   va_end(args);
 }
 
-static void cursor_put_octet(struct cursor *cursor, uint8_t octet) {
+static void cursor_put_octet(struct write_cursor *cursor, uint8_t octet) {
   for (int i = 7; i >= 0; i--) {
     cursor_put_bit(cursor, (octet >> i) & 1);
   }
 }
 
+static uint8_t cursor_get_bit(struct read_cursor *cursor) {
+  assert(cursor->index < cursor->size);
+  return cursor->buf[cursor->index++];
+}
+
+static uint8_t cursor_get_octet(struct read_cursor *cursor) {
+  // 順当に左から読むと考えるので、先頭から順に高い位のビットであることに注意
+  uint8_t octet = 0;
+  for (int i = 7; i >= 0; i--) {
+    octet |= cursor_get_bit(cursor) << i;
+  }
+  return octet;
+}
+
 static void data_encode_mode(struct qr_config const *cfg,
-                             struct cursor *cursor) {
+                             struct write_cursor *cursor) {
   assert(cfg->encmode == qrenc_8bit);
   // 8bit -> 0100
   cursor_put_bits(cursor, 4, 0, 1, 0, 0);
 }
 
 static void data_encode_strlen(struct qr_config const *cfg,
-                               struct cursor *cursor, int len) {
+                               struct write_cursor *cursor, int len) {
   assert(cfg->encmode == qrenc_8bit);
   // 8bitモードでは8bitで文字数を指定する
   assert(len < 256);
   cursor_put_octet(cursor, (uint8_t)len);
 }
 
-static void data_encode_str(struct cursor *cursor, char const *str) {
+static void data_encode_str(struct write_cursor *cursor, char const *str) {
   while (*str) {
     cursor_put_octet(cursor, *str);
     str++;
   }
 }
 
-static void data_add_terminator(struct cursor *cursor) {
+static void data_add_terminator(struct write_cursor *cursor) {
   // 終端に4ビット以上の空きがある場合は終端パターンとして0000を追加する
   if (cursor->size - cursor->index < 4) return;
   cursor_put_bits(cursor, 4, 0, 0, 0, 0);
 }
 
-static void data_align(struct cursor *cursor) {
+static void data_align(struct write_cursor *cursor) {
   // 8ビットごとに区切り、最後のグループのサイズを調整する
   int extra = (8 - cursor->index % 8) % 8;
   for (int i = 0; i < extra; i++) cursor_put_bit(cursor, 0);
 }
 
 static void data_add_padding(struct qr_config const *cfg,
-                             struct cursor *cursor) {
+                             struct write_cursor *cursor) {
   // 残りの容量を11101100と00010001で埋める
   static uint8_t patterns[][8] = {
       {1, 1, 1, 0, 1, 1, 0, 0},
@@ -99,8 +127,9 @@ static void data_add_padding(struct qr_config const *cfg,
 
 static void data_encode(struct qr_config const *cfg, char const *str,
                         uint8_t *data) {
-  struct cursor cursor = {0};
-  cursor_init(&cursor, data, num_blocks_data(cfg->version, cfg->errmode) * 8);
+  struct write_cursor cursor = {0};
+  cursor_init_write(&cursor, data,
+                    num_blocks_data(cfg->version, cfg->errmode) * 8);
 
   data_encode_mode(cfg, &cursor);
   data_encode_strlen(cfg, &cursor, strlen(str));
@@ -152,22 +181,15 @@ static bool compute_g_alloc(struct kx *g, int num_blocks_err) {
 }
 
 static bool errcodes_encode_f_alloc(struct kx *f, uint8_t const *data,
-                                    int data_len) {
-  assert(data_len > 0);
-  if (!kx_alloc(ft_gf256, f, data_len - 1)) return false;
+                                    int num_blocks_data) {
+  assert(num_blocks_data > 0);
+  if (!kx_alloc(ft_gf256, f, num_blocks_data - 1)) return false;
 
-  for (int i = 0; i < data_len; i++) {
-    int dim = data_len - i;
+  struct read_cursor cursor;
 
-    // 連続8ビットを整数値にする
-    int num = 0;
-    for (int j = 0; j < 8; j++) {
-      // 順当に左から読むと考えるので、data[x]のxが小さい順に高い位のビットで
-      // あることに注意
-      num |= data[i * 8 + j] << (7 - j);
-    }
-
-    f->coeffs[dim] = num;
+  cursor_init_read(&cursor, data, num_blocks_data * 8);
+  for (int dim = num_blocks_data - 1; dim >= 0; dim--) {
+    f->coeffs[dim] = cursor_get_octet(&cursor);
   }
 
   return true;
@@ -179,26 +201,50 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
   assert(data);
   assert(errcodes);
 
+  int num_err = num_blocks_err(cfg->version, cfg->errmode);
+  int num_data = num_blocks_data(cfg->version, cfg->errmode);
+
   // 生成多項式 g(x) を計算する
   struct kx g;
-  assert(compute_g_alloc(&g, num_blocks_err(cfg->version, cfg->errmode)));
+  assert(compute_g_alloc(&g, num_err));
 
   // データを多項式 f(x) の形にする
   struct kx f;
-  assert(errcodes_encode_f_alloc(&f, data,
-                                 num_blocks_data(cfg->version, cfg->errmode)));
-  kx_dump(&f);
+  assert(errcodes_encode_f_alloc(&f, data, num_data));
 
+  struct kx q, r;
+  assert(kx_div_alloc(&q, &r, &f, &g));
+
+  struct write_cursor cursor;
+  cursor_init_write(&cursor, errcodes, num_err * 8);
+
+  for (int dim = num_err - 1; dim >= 0; dim--) {
+    cursor_put_octet(&cursor, kx_get_coeffs(&r, dim));
+  }
+
+  kx_free(&r);
+  kx_free(&q);
   kx_free(&f);
   kx_free(&g);
 }
 
 void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
             uint8_t *errcodes) {
-  assert(errcodes);
-
   data_encode(cfg, str, data);
   errcodes_encode(cfg, data, errcodes);
+
+  struct read_cursor dc, ec;
+  cursor_init_read(&dc, data, 44 * 8);
+  cursor_init_read(&ec, errcodes, 22 * 8);
+  for (int i = 0; i < 44; i++) {
+    printf("%d ", cursor_get_octet(&dc));
+  }
+  printf("\n");
+
+  for (int i = 0; i < 22; i++) {
+    printf("%d ", cursor_get_octet(&ec));
+  }
+  printf("\n");
 }
 
 // int main(void) {

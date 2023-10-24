@@ -202,7 +202,7 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
 
   // 生成多項式 g(x) を計算する
   struct kx g;
-  assert(compute_g_alloc(&g, num_blocks_data(cfg)));
+  assert(compute_g_alloc(&g, num_blocks_err(cfg)));
 
   // データを多項式 f(x) の形にする
   struct kx f;
@@ -210,6 +210,17 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
 
   struct kx q, r;
   assert(kx_div_alloc(&q, &r, &f, &g));
+
+  printf("\n");
+  printf("f: ");
+  kx_dump(&f);
+  printf("\n");
+  printf("g: ");
+  kx_dump(&g);
+  printf("\n");
+  printf("r: ");
+  kx_dump(&r);
+  printf("\n");
 
   struct write_cursor cursor;
   cursor_init_write(&cursor, errcodes, num_blocks_err(cfg) * 8);
@@ -229,15 +240,16 @@ void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
   data_encode(cfg, str, data);
   errcodes_encode(cfg, data, errcodes);
 
+  // debug
   struct read_cursor dc, ec;
-  cursor_init_read(&dc, data, 44 * 8);
-  cursor_init_read(&ec, errcodes, 22 * 8);
-  for (int i = 0; i < 44; i++) {
+  cursor_init_read(&dc, data, num_blocks_data(cfg) * 8);
+  cursor_init_read(&ec, errcodes, num_blocks_err(cfg) * 8);
+  for (int i = 0; i < num_blocks_data(cfg); i++) {
     printf("%d ", cursor_get_octet(&dc));
   }
   printf("\n");
 
-  for (int i = 0; i < 22; i++) {
+  for (int i = 0; i < num_blocks_err(cfg); i++) {
     printf("%d ", cursor_get_octet(&ec));
   }
   printf("\n");

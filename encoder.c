@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "gf256.h"
+#include "kx.h"
 #include "qrcode.h"
 #include "traits.h"
 
@@ -114,11 +116,52 @@ static void data_encode(struct qr_config const *cfg, char const *str,
   assert(cursor.index == cursor.size);
 }
 
+static bool compute_g_alloc(struct kx *g, int num_blocks_err) {
+  assert(num_blocks_err > 0);
+
+  // 求める生成多項式 g は
+  // (x + a^0)(x + a^1) ... (x + a^(num_blocks_err-1))
+  // らしい
+  int a = gf256_from_exp(0);
+  struct kx mul;
+  if (!kx_alloc(ft_gf256, &mul, 1)) return false;
+
+  if (!kx_alloc(ft_gf256, g, 0)) {
+    kx_free(&mul);
+    return false;
+  }
+  g->coeffs[0] = 1;
+
+  for (int i = 0; i < num_blocks_err; i++) {
+    mul.coeffs[0] = a;
+    mul.coeffs[1] = 1;
+
+    struct kx res;
+    if (!kx_mul_alloc(&res, g, &mul)) {
+      kx_free(g);
+      kx_free(&mul);
+      return false;
+    }
+
+    kx_free(g);
+    *g = res;
+    a = gf256_mul(a, gf256_from_exp(1));
+  }
+
+  return true;
+}
+
 static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
                             uint8_t *errcodes) {
   assert(cfg);
   assert(data);
   assert(errcodes);
+
+  // 生成多項式 g(x) を計算する
+  struct kx g;
+  assert(compute_g_alloc(&g, num_blocks_err(cfg->version, cfg->errmode)));
+
+  kx_free(&g);
 }
 
 void encode(struct qr_config const *cfg, char const *str, uint8_t *data,

@@ -26,9 +26,10 @@ int main(int argc, char *argv[]) {
   assert(data);
   assert(errcodes);
 
-  const char *output_file_name = argc > 1 ? argv[1] : "output.bmp";
+  const char *str = argc > 1 ? argv[1] : "hello";
+  const char *output_file_name = argc > 2 ? argv[2] : "output.bmp";
 
-  encode(&cfg, "abcdefghijklmnopqrstuvwxyzabcdefghijklmnop", data, errcodes);
+  encode(&cfg, str, data, errcodes);
   render(&mat, data, errcodes);
   paint(output_file_name, &mat);
 
@@ -36,6 +37,8 @@ int main(int argc, char *argv[]) {
 
   free(data);
   free(errcodes);
+
+  printf("`%s` written in `%s`.\n", str, output_file_name);
 
   return 0;
 }

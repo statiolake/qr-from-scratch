@@ -117,7 +117,7 @@ static void data_add_padding(struct qr_config const *cfg,
   // アラインメントも済んで必ず8の倍数になっているはず
   assert(cursor->index % 8 == 0);
 
-  int size = num_blocks_data(cfg->version, cfg->errmode) * 8;
+  int size = num_blocks_data(cfg) * 8;
   int reminder = (size - cursor->index) / 8;
   for (int p = 0; p < reminder; p++) {
     uint8_t const *pat = patterns[p % 2];
@@ -128,8 +128,7 @@ static void data_add_padding(struct qr_config const *cfg,
 static void data_encode(struct qr_config const *cfg, char const *str,
                         uint8_t *data) {
   struct write_cursor cursor = {0};
-  cursor_init_write(&cursor, data,
-                    num_blocks_data(cfg->version, cfg->errmode) * 8);
+  cursor_init_write(&cursor, data, num_blocks_data(cfg) * 8);
 
   data_encode_mode(cfg, &cursor);
   data_encode_strlen(cfg, &cursor, strlen(str));
@@ -201,24 +200,21 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
   assert(data);
   assert(errcodes);
 
-  int num_err = num_blocks_err(cfg->version, cfg->errmode);
-  int num_data = num_blocks_data(cfg->version, cfg->errmode);
-
   // 生成多項式 g(x) を計算する
   struct kx g;
-  assert(compute_g_alloc(&g, num_err));
+  assert(compute_g_alloc(&g, num_blocks_data(cfg)));
 
   // データを多項式 f(x) の形にする
   struct kx f;
-  assert(errcodes_encode_f_alloc(&f, data, num_data));
+  assert(errcodes_encode_f_alloc(&f, data, num_blocks_data(cfg)));
 
   struct kx q, r;
   assert(kx_div_alloc(&q, &r, &f, &g));
 
   struct write_cursor cursor;
-  cursor_init_write(&cursor, errcodes, num_err * 8);
+  cursor_init_write(&cursor, errcodes, num_blocks_err(cfg) * 8);
 
-  for (int dim = num_err - 1; dim >= 0; dim--) {
+  for (int dim = num_blocks_err(cfg) - 1; dim >= 0; dim--) {
     cursor_put_octet(&cursor, kx_get_coeffs(&r, dim));
   }
 

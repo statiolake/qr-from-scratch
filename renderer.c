@@ -27,15 +27,14 @@ int matrix_size(enum qr_version version) {
   return 29;
 }
 
-bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
-                     enum qr_errmode mode, enum qr_maskpat mask) {
-  int size = matrix_size(version);
+bool qr_matrix_alloc(struct qr_matrix *mat, struct qr_config *cfg,
+                     enum qr_maskpat mask) {
+  int size = matrix_size(cfg->version);
   uint8_t *data = (uint8_t *)malloc(size * size);
   if (!data) return false;
 
   mat->data = data;
-  mat->version = version;
-  mat->mode = mode;
+  mat->cfg = cfg;
   mat->mask = mask;
 
   return true;
@@ -48,7 +47,7 @@ void qr_matrix_free(struct qr_matrix *mat) {
 }
 
 void qr_matrix_dump(struct qr_matrix *mat) {
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
   for (int r = 0; r < mat_size; r++) {
     for (int c = 0; c < mat_size; c++) {
       int cell = mat->data[r * mat_size + c];
@@ -73,7 +72,7 @@ void qr_matrix_dump(struct qr_matrix *mat) {
 }
 
 void qr_matrix_dump_tsv(struct qr_matrix *mat) {
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
   for (int r = 0; r < mat_size; r++) {
     for (int c = 0; c < mat_size; c++) {
       if (c > 0) putchar('\t');
@@ -122,7 +121,7 @@ static void render_square_pattern(struct qr_matrix *mat, struct coord crd,
 
   // c がはみ出していないことを確認する
   int pat_size = 2 + center_extra;
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
   assert(0 <= crd.c - pat_size && crd.c + pat_size < mat_size);
   assert(0 <= crd.r - pat_size && crd.r + pat_size < mat_size);
 
@@ -163,7 +162,7 @@ static void render_square_pattern(struct qr_matrix *mat, struct coord crd,
  */
 static void render_finders(struct qr_matrix *mat) {
   // 左上、右上、左下
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
   render_square_pattern(mat, (struct coord){3, 3}, true);
   render_square_pattern(mat, (struct coord){mat_size - 4, 3}, true);
   render_square_pattern(mat, (struct coord){3, mat_size - 4}, true);
@@ -174,7 +173,7 @@ static void render_finders(struct qr_matrix *mat) {
  */
 static void render_alignments(struct qr_matrix *mat) {
   struct coord const *crds;
-  int num_crds = alignment_coords(mat->version, mat->mode, &crds);
+  int num_crds = alignment_coords(mat->cfg->version, mat->cfg->errmode, &crds);
   for (int i = 0; i < num_crds; i++) {
     render_square_pattern(mat, crds[i], false);
   }
@@ -184,7 +183,7 @@ static void render_alignments(struct qr_matrix *mat) {
  * Timing パターンをレンダリングする。
  */
 static void render_timings(struct qr_matrix *mat) {
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
 
   // 縦の Timing パターン
   for (int r = 0; r < mat_size; r++) {
@@ -265,9 +264,9 @@ static void compute_format_info(enum qr_errmode mode, enum qr_maskpat mask,
 
 static void render_format_info(struct qr_matrix *mat) {
   int bits[15] = {0};
-  compute_format_info(mat->mode, mat->mask, bits);
+  compute_format_info(mat->cfg->errmode, mat->mask, bits);
 
-  int size = matrix_size(mat->version);
+  int size = matrix_size(mat->cfg->version);
 #define SET(r, c, v) mat->data[(r)*size + (c)] = (v ? QRMV_PRE_B : QRMV_PRE_W)
   // 左上に埋めるパターン
   SET(0, 8, bits[0]);
@@ -312,13 +311,12 @@ struct data_iter {
   int max_dit, dit, max_eit, eit;
 };
 
-static void dit_init(struct data_iter *dit, enum qr_version version,
-                     enum qr_errmode mode, uint8_t const *data,
-                     uint8_t const *errcodes) {
+static void dit_init(struct data_iter *dit, struct qr_config *cfg,
+                     uint8_t const *data, uint8_t const *errcodes) {
   dit->data = data;
   dit->errcodes = errcodes;
-  dit->max_dit = 8 * num_blocks_data(version, mode);
-  dit->max_eit = 8 * num_blocks_err(version, mode);
+  dit->max_dit = 8 * num_blocks_data(cfg);
+  dit->max_eit = 8 * num_blocks_err(cfg);
   dit->dit = dit->eit = 0;
 }
 
@@ -335,7 +333,7 @@ struct coord_iter {
 };
 
 static void cit_init(struct coord_iter *cit, struct qr_matrix *mat) {
-  int size = matrix_size(mat->version);
+  int size = matrix_size(mat->cfg->version);
   // 右下からスタート
   // 最初の cit_next() で右下に入るよう、初期値はもう一つ分遠くにする
   cit->mat = mat;
@@ -346,7 +344,7 @@ static void cit_init(struct coord_iter *cit, struct qr_matrix *mat) {
 }
 
 static struct coord const *cit_step(struct coord_iter *cit) {
-  int size = matrix_size(cit->mat->version);
+  int size = matrix_size(cit->mat->cfg->version);
 
   if (cit->curr.r >= size - 1 && cit->curr.c <= 0) {
     // すでに尽くした
@@ -388,7 +386,7 @@ static struct coord const *cit_step(struct coord_iter *cit) {
 }
 
 static struct coord const *cit_next(struct coord_iter *cit) {
-  int mat_size = matrix_size(cit->mat->version);
+  int mat_size = matrix_size(cit->mat->cfg->version);
   struct coord const *curr;
   while ((curr = cit_step(cit))) {
     assert(curr->r >= 0 && curr->c >= 0 && curr->r < mat_size &&
@@ -405,13 +403,13 @@ static struct coord const *cit_next(struct coord_iter *cit) {
 static void render_data(struct qr_matrix *mat, uint8_t const *data,
                         uint8_t const *errcodes) {
   struct data_iter dit;
-  dit_init(&dit, mat->version, mat->mode, data, errcodes);
+  dit_init(&dit, mat->cfg, data, errcodes);
 
   struct coord const *curr;
   struct coord_iter cit;
   cit_init(&cit, mat);
 
-  int size = matrix_size(mat->version);
+  int size = matrix_size(mat->cfg->version);
   while ((curr = cit_next(&cit))) {
     uint8_t const *curr_data = dit_next(&dit);
     uint8_t qrmv = curr_data && *curr_data ? QRMV_B : QRMV_W;
@@ -426,7 +424,7 @@ static void mask_data(struct qr_matrix *mat) {
   struct coord_iter cit;
   cit_init(&cit, mat);
 
-  int size = matrix_size(mat->version);
+  int size = matrix_size(mat->cfg->version);
   while ((curr = cit_next(&cit))) {
     if ((curr->c + curr->r) % 2 == 0) {
       // QRMV_W <-> QRMV_B の反転は最下位ビットの反転だけで完了する

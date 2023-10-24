@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "encoder.h"
 #include "qrcode.h"
 
 // qr_matrixのdata
@@ -28,8 +29,7 @@ enum qr_maskpat {
 
 struct qr_matrix {
   uint8_t *data;
-  enum qr_version version;
-  enum qr_errmode mode;
+  struct qr_config *cfg;
   enum qr_maskpat mask;
 };
 
@@ -39,8 +39,8 @@ struct coord {
 
 int matrix_size(enum qr_version version);
 
-bool qr_matrix_alloc(struct qr_matrix *mat, enum qr_version version,
-                     enum qr_errmode mode, enum qr_maskpat mask);
+bool qr_matrix_alloc(struct qr_matrix *mat, struct qr_config *cfg,
+                     enum qr_maskpat mask);
 
 void qr_matrix_free(struct qr_matrix *mat);
 

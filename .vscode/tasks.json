@@ -4,6 +4,11 @@
   "version": "2.0.0",
   "tasks": [
     {
+      "label": "make-qrcode",
+      "type": "shell",
+      "command": "make qrcode"
+    },
+    {
       "label": "make-test_gf256",
       "type": "shell",
       "command": "make test_gf256"

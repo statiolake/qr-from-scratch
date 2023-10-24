@@ -104,7 +104,7 @@ void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
   encode_str(&cursor, str);
   add_terminator(&cursor);
   align_data(&cursor);
-  printf("index: %d / %d\n", cursor.index, cursor.size);
+  assert(cursor.index % 8 == 0);
   add_padding(cfg, &cursor);
 
   assert(cursor.index == cursor.size);

@@ -21,10 +21,10 @@ int main(int argc, char *argv[]) {
 
   encode(&config, "abcdefghijklmnopqrstuvwxyz", data, errcodes);
   for (int i = 0; i < 44; i++) {
-    uint8_t as_value = data[i * 8 + 7] << 7 | data[i * 8 + 6] << 6 |
-                       data[i * 8 + 5] << 5 | data[i * 8 + 4] << 4 |
-                       data[i * 8 + 3] << 3 | data[i * 8 + 2] << 2 |
-                       data[i * 8 + 1] << 1 | data[i * 8];
+    uint8_t as_value = (data[i * 8 + 0] << 7) | (data[i * 8 + 1] << 6) |
+                       (data[i * 8 + 2] << 5) | (data[i * 8 + 3] << 4) |
+                       (data[i * 8 + 4] << 3) | (data[i * 8 + 5] << 2) |
+                       (data[i * 8 + 6] << 1) | (data[i * 8 + 7] << 0);
     printf("%d ", as_value);
   }
   printf("\n");

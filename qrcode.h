@@ -26,4 +26,10 @@ enum qr_encmode {
   // qrenc_kanji = 8,
 };
 
+struct qr_config {
+  enum qr_version version;
+  enum qr_errmode errmode;
+  enum qr_encmode encmode;
+};
+
 #endif

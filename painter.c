@@ -65,7 +65,7 @@ static size_t compute_size(struct qr_matrix *mat) {
   size_t metadata_size = compute_metadata_size();
 
   // データのサイズ
-  size_t mat_size = matrix_size(mat->version);
+  size_t mat_size = matrix_size(mat->cfg->version);
   assert(CELL_SIZE % 4 == 0);
   assert(PADDING_SIZE % 4 == 0);
 
@@ -175,7 +175,7 @@ bool paint(char const *file_name, struct qr_matrix *mat) {
       .bfOffBits = compute_metadata_size(),
   };
 
-  int mat_size = matrix_size(mat->version);
+  int mat_size = matrix_size(mat->cfg->version);
   int qr_size = mat_size * CELL_SIZE;
   int bitmap_size = qr_size + PADDING_SIZE * 2;
   struct BITMAPINFOHEADER ih = {

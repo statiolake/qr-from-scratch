@@ -97,14 +97,13 @@ void qr_matrix_dump_tsv(struct qr_matrix *mat) {
   }
 }
 
-static int alignment_coords(enum qr_version version, enum qr_errmode mode,
+static int alignment_coords(enum qr_version version,
                             struct coord const **crds) {
   assert(version == qrver_3);
-  assert(mode == qrerr_M);
 
-  // QRコード3Mの位置は0-indexedで(22, 22)の1つ
-  static struct coord COORDS_3M[] = {{.r = 22, .c = 22}};
-  *crds = COORDS_3M;
+  // QRコードバージョン3での位置は0-indexedで(22, 22)の1つ
+  static struct coord COORDS_3[] = {{.r = 22, .c = 22}};
+  *crds = COORDS_3;
   return 1;
 }
 
@@ -173,7 +172,7 @@ static void render_finders(struct qr_matrix *mat) {
  */
 static void render_alignments(struct qr_matrix *mat) {
   struct coord const *crds;
-  int num_crds = alignment_coords(mat->cfg->version, mat->cfg->errmode, &crds);
+  int num_crds = alignment_coords(mat->cfg->version, &crds);
   for (int i = 0; i < num_crds; i++) {
     render_square_pattern(mat, crds[i], false);
   }

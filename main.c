@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "encoder.h"
 #include "painter.h"
@@ -11,12 +12,20 @@
 int main(int argc, char *argv[]) {
   struct qr_matrix mat = {0};
 
+  const char *str = argc > 1 ? argv[1] : "hello";
+  const char *output_file_name = argc > 2 ? argv[2] : "output.bmp";
+
   // レンダリング
   struct qr_config cfg = {
       .version = qrver_3,
       .errmode = qrerr_M,
       .encmode = qrenc_8bit,
   };
+
+  if (strlen(str) > num_max_length(&cfg)) {
+    // はみ出るようならエラー訂正モードを弱くする
+    cfg.errmode = qrerr_L;
+  }
 
   assert(qr_matrix_alloc(&mat, &cfg, qrmsk_000));
 
@@ -25,9 +34,6 @@ int main(int argc, char *argv[]) {
 
   assert(data);
   assert(errcodes);
-
-  const char *str = argc > 1 ? argv[1] : "hello";
-  const char *output_file_name = argc > 2 ? argv[2] : "output.bmp";
 
   encode(&cfg, str, data, errcodes);
   render(&mat, data, errcodes);

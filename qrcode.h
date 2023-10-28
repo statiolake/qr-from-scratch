@@ -10,12 +10,11 @@ enum qr_version {
   qrver_3,
 };
 
-// Hのみサポート
 enum qr_errmode {
-  // qrerr_L = 1,
+  qrerr_L = 1,
   qrerr_M = 0,
   // qrerr_Q = 3,
-  qrerr_H = 2,
+  // qrerr_H = 2,
 };
 
 // 8ビットのみをサポート

@@ -229,9 +229,9 @@ static void errcodes_encode(struct qr_config const *cfg, uint8_t const *data,
 
 void encode(struct qr_config const *cfg, char const *str, uint8_t *data,
             uint8_t *errcodes) {
-  assert(cfg->version == qrver_3 && cfg->errmode == qrerr_M);
-  // 3Mだと42まで
-  assert(strlen(str) <= 42);
+  assert(cfg->version == qrver_3 &&
+         (cfg->errmode == qrerr_M || cfg->errmode == qrerr_L));
+  assert(strlen(str) <= num_max_length(cfg));
   data_encode(cfg, str, data);
   errcodes_encode(cfg, data, errcodes);
 }

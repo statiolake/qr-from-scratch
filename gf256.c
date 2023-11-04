@@ -206,6 +206,7 @@ int gf256_mul(int a, int b) {
   assert(kx_div_alloc(&quot, &rem, &res, &minpoly));
   int n = to_256mod(&rem);
 
+  kx_free(&minpoly);
   kx_free(&kxa);
   kx_free(&kxb);
   kx_free(&res);

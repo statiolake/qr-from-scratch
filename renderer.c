@@ -30,7 +30,7 @@ int matrix_size(enum qr_version version) {
 bool qr_matrix_alloc(struct qr_matrix *mat, struct qr_config *cfg,
                      enum qr_maskpat mask) {
   int size = matrix_size(cfg->version);
-  uint8_t *data = (uint8_t *)malloc(size * size);
+  uint8_t *data = (uint8_t *)calloc(size * size, sizeof(uint8_t));
   if (!data) return false;
 
   mat->data = data;

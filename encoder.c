@@ -176,6 +176,8 @@ static bool compute_g_alloc(struct kx *g, int num_blocks_err) {
     a = gf256_mul(a, gf256_from_exp(1));
   }
 
+  kx_free(&mul);
+
   return true;
 }
 

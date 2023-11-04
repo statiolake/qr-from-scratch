@@ -206,6 +206,7 @@ int gf256_mul(int a, int b) {
   assert(kx_div_alloc(&quot, &rem, &res, &minpoly));
   int n = to_256mod(&rem);
 
+  kx_free(&minpoly);
   kx_free(&kxa);
   kx_free(&kxb);
   kx_free(&res);
@@ -226,6 +227,9 @@ int gf256_div(int a, int b) {
   struct kx kxsa, kxsb;
   assert(simplify_alloc(&kxsa, &kxa));
   assert(simplify_alloc(&kxsb, &kxb));
+
+  kx_free(&kxa);
+  kx_free(&kxb);
 
   // もし kxsa のほうが次元が低い場合は、kxsa を x^255 倍する
   // (x^255 ≡ 1 なので問題ない)
@@ -249,5 +253,12 @@ int gf256_div(int a, int b) {
   assert(q.coeffs[q.dim] == 1);
 
   // x^? の ? を 256mod に直す。
-  return gf256_from_exp(q.dim);
+  int res = gf256_from_exp(q.dim);
+
+  kx_free(&q);
+  kx_free(&r);
+  kx_free(&kxsa);
+  kx_free(&kxsb);
+
+  return res;
 }

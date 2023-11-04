@@ -228,6 +228,9 @@ int gf256_div(int a, int b) {
   assert(simplify_alloc(&kxsa, &kxa));
   assert(simplify_alloc(&kxsb, &kxb));
 
+  kx_free(&kxa);
+  kx_free(&kxb);
+
   // もし kxsa のほうが次元が低い場合は、kxsa を x^255 倍する
   // (x^255 ≡ 1 なので問題ない)
   if (kxsa.dim < kxsb.dim) {

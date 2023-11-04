@@ -250,5 +250,12 @@ int gf256_div(int a, int b) {
   assert(q.coeffs[q.dim] == 1);
 
   // x^? の ? を 256mod に直す。
-  return gf256_from_exp(q.dim);
+  int res = gf256_from_exp(q.dim);
+
+  kx_free(&q);
+  kx_free(&r);
+  kx_free(&kxsa);
+  kx_free(&kxsb);
+
+  return res;
 }
